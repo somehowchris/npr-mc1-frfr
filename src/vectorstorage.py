@@ -11,15 +11,15 @@ from langchain_chroma import Chroma
 class EmbeddingVectorStorage:
     def __init__(self,
                  method_of_embedding: Embeddings,
-                 group: str,
-                 path_persistent: str = 'chroma'):
+                 collection: str,
+                 path_persistent: str = '../data/chroma'):
 
         self.client = chromadb.PersistentClient(path=path_persistent)
         self.method_of_embedding = method_of_embedding
-        self.group = group
+        self.group = collection
 
         self.storage_of_vector = Chroma(client=self.client,
-                                        collection_name=group,
+                                        collection_name=collection,
                                         embedding_function=method_of_embedding)
 
     def test_heartbeat(self) -> int:
@@ -56,7 +56,6 @@ class EmbeddingVectorStorage:
         return np.any([group.name == self.group for group in self.client.list_collections()])
 
     def collection_is_empty(self) -> bool:
-        """Check if the collection is empty in the vector store."""
         return self.client.get_collection(self.group).count() == 0
 
     def __repr__(self) -> str:
