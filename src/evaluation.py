@@ -130,11 +130,15 @@ class RAGEvaluation:
 
         for query in tqdm(questions, desc="Preprocessing queries"):
             result_chain = self.rag_chain.invoke(query)
+
+            # Extract plain text content for retrieved_contexts
             retrieved_contexts = [doc.page_content for doc in result_chain["context"]]
+
             data["user_input"].append(query)
-            data["retrieved_contexts"].append(retrieved_contexts)
+            data["retrieved_contexts"].append(retrieved_contexts)  # List of strings
             data["response"].append(result_chain['answer'])
 
+        # Convert to Dataset without modifying the data types
         self.dataset = Dataset.from_dict(data)
         self.save_to_cache(self.dataset, cache_file)
 
@@ -308,7 +312,6 @@ class RAGEvaluation:
         boxplot_columns = [
             'faithfulness',
             'answer_relevancy',
-            'context_recall',
             'context_precision',
             'context_entity_recall',
             'semantic_similarity',
