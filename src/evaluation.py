@@ -28,11 +28,12 @@ from src.config import CACHE_DIR
 nest_asyncio.apply()
 
 class RAGEvaluation:
-    def __init__(self, name, rag_chain, llm_model, embeddings):
+    def __init__(self, name, rag_chain, llm_model, embeddings, local_llm=None):
         self.name = name
         self.rag_chain = rag_chain
         self.llm_model = llm_model
         self.embeddings = embeddings
+        self.local_llm = local_llm
         self.clean_dataset = None
         self.eval_test = None
         self.dataset = None
@@ -73,14 +74,15 @@ class RAGEvaluation:
 
     def get_dynamic_filename(self, base_name, step):
         embedding_model_name = getattr(self.embeddings, "model_name", "unknown_embedding_model")
+        prefix = self.local_llm + "_" if self.local_llm else ""
 
         if step == "preprocess":
             return CACHE_DIR / f"{base_name}.pkl"
         elif step == "dataset":
-            return CACHE_DIR / f"{embedding_model_name}_dataset.pkl"
+            return CACHE_DIR / f"{prefix}{embedding_model_name}_dataset.pkl"
         elif step == "evaluation":
             global_llm_name = getattr(self.llm_model, "model_name", "unknown_global_llm")
-            return CACHE_DIR / f"{embedding_model_name}_{global_llm_name}_eval_result.pkl"
+            return CACHE_DIR / f"{prefix}{embedding_model_name}_{global_llm_name}_eval_result.pkl"
         else:
             raise ValueError(f"Unknown step: {step}")
 
