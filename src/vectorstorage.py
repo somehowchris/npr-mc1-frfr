@@ -7,6 +7,8 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.documents.base import Document
 from langchain_chroma import Chroma
 
+DEFAULT_K = 4
+
 
 class EmbeddingVectorStorage:
     def __init__(self,
@@ -16,7 +18,7 @@ class EmbeddingVectorStorage:
 
         self.client = chromadb.PersistentClient(path=path_persistent)
         self.method_of_embedding = method_of_embedding
-        self.group = collection
+        self.collection = collection
 
         self.storage_of_vector = Chroma(client=self.client,
                                         collection_name=collection,
@@ -31,13 +33,13 @@ class EmbeddingVectorStorage:
     def delete_group(self) -> None:
         self.storage_of_vector.delete_collection()
 
-    def obtain_retriever(self) -> BaseRetriever:
+    def as_retriever(self) -> BaseRetriever:
         return self.storage_of_vector.as_retriever()
 
     def include_documents(self, documents: list[Document], size_of_batch=41666, should_verbose: bool = False,
                           allow_overwrite: bool = False):
         if not self.collection_is_empty() and not allow_overwrite:
-            print(f"Group {self.group} already exists in the vector storage.")
+            print(f"Group {self.collection} already exists in the vector storage.")
             return
 
         size_of_batch = min(size_of_batch, 41666)
@@ -49,15 +51,15 @@ class EmbeddingVectorStorage:
     def search_similar(self, query: str) -> list[Document]:
         return self.storage_of_vector.similarity_search(query)
 
-    def search_similar_w_scores(self, query: str) -> list[tuple[Document, float]]:
-        return self.storage_of_vector.similarity_search_with_score(query)
+    def search_similar_w_scores(self, query: str, k: int = None) -> list[tuple[Document, float]]:
+        return self.storage_of_vector.similarity_search_with_score(query, k=DEFAULT_K)
 
     def does_group_exist(self) -> bool:
-        return np.any([group.name == self.group for group in self.client.list_collections()])
+        return np.any([group.name == self.collection for group in self.client.list_collections()])
 
     def collection_is_empty(self) -> bool:
-        return self.client.get_collection(self.group).count() == 0
+        return self.client.get_collection(self.collection).count() == 0
 
     def __repr__(self) -> str:
         return f"VectorStorage(method_of_embedding={self.method_of_embedding.__class__.__name__}, " \
-               f"group={self.group})"
+               f"group={self.collection})"

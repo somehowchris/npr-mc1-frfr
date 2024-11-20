@@ -81,3 +81,26 @@ class CustomHuggingFaceEndpointEmbeddings(HuggingFaceEndpointEmbeddings):
         """
         response = (await self.aembed_documents([text]))[0]
         return response
+
+
+
+bge_m3_embed = CustomHuggingFaceEndpointEmbeddings(
+    model_name='BAAI_bge_m3',
+    model='http://100.67.185.22:8080',
+    #huggingfacehub_api_token=token,
+    model_kwargs={"normalize_embeddings": True}
+)  # docker name musing_blackburn
+
+qwen2_embed = CustomHuggingFaceEndpointEmbeddings(
+    model_name='Alibaba-NLP_gte-Qwen2-7B',
+    model='http://100.67.185.22:8083',
+    #huggingfacehub_api_token=token,
+    model_kwargs={"normalize_embeddings": True}
+)  # docker name nostalgic_khayyam
+
+nomic_embed = CustomHuggingFaceEndpointEmbeddings(
+    model_name='nomic-ai_nomic-embed-text-v1_5',
+    model='http://100.67.185.22:8082',
+    #huggingfacehub_api_token=token,
+    model_kwargs={"normalize_embeddings": True}
+)  # docker name thirsty_heisenberg
