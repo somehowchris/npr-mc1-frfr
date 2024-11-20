@@ -33,8 +33,8 @@ class EmbeddingVectorStorage:
     def delete_group(self) -> None:
         self.storage_of_vector.delete_collection()
 
-    def as_retriever(self) -> BaseRetriever:
-        return self.storage_of_vector.as_retriever()
+    def as_retriever(self, k: int = DEFAULT_K) -> BaseRetriever:
+        return self.storage_of_vector.as_retriever(search_kwargs={"k": k})
 
     def include_documents(self, documents: list[Document], size_of_batch=41666, should_verbose: bool = False,
                           allow_overwrite: bool = False):
