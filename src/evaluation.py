@@ -8,6 +8,7 @@ from fuzzywuzzy import fuzz
 from tqdm import tqdm
 from pandarallel import pandarallel
 from datasets import Dataset
+import numpy as np
 from ragas import evaluate, RunConfig
 from ragas.metrics import (
     faithfulness,
@@ -21,6 +22,8 @@ from ragas.metrics import (
 from ragas.llms import LangchainLLMWrapper
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from src.config import CACHE_DIR
 
 nest_asyncio.apply()
 
@@ -69,23 +72,15 @@ class RAGEvaluation:
             return pickle.load(f)
 
     def get_dynamic_filename(self, base_name, step):
-        """
-        Generate dynamic filenames for cache files.
-        Args:
-            base_name (str): Base name for the cache file.
-            step (str): Step in the pipeline (e.g., 'preprocess', 'dataset', 'evaluation').
-        Returns:
-            str: The generated cache filename.
-        """
         embedding_model_name = getattr(self.embeddings, "model_name", "unknown_embedding_model")
 
         if step == "preprocess":
-            return f"data/cache/{base_name}.pkl"  # Static for preprocessing
+            return CACHE_DIR / f"{base_name}.pkl"
         elif step == "dataset":
-            return f"data/cache/{embedding_model_name}_dataset.pkl"
+            return CACHE_DIR / f"{embedding_model_name}_dataset.pkl"
         elif step == "evaluation":
             global_llm_name = getattr(self.llm_model, "model_name", "unknown_global_llm")
-            return f"data/cache/{embedding_model_name}_{global_llm_name}_eval_result.pkl"
+            return CACHE_DIR / f"{embedding_model_name}_{global_llm_name}_eval_result.pkl"
         else:
             raise ValueError(f"Unknown step: {step}")
 
@@ -93,7 +88,6 @@ class RAGEvaluation:
         cache_file = self.get_dynamic_filename("preprocessed", "preprocess")
         cache_path = Path(cache_file)
 
-        # Check for cached data
         if cache_path.exists():
             self.eval_test = self.load_from_cache(cache_file)
             return
@@ -115,7 +109,6 @@ class RAGEvaluation:
         cache_file = self.get_dynamic_filename("dataset", "dataset")
         cache_path = Path(cache_file)
 
-        # Check for cached dataset
         if cache_path.exists():
             self.dataset = self.load_from_cache(cache_file)
             return
@@ -138,27 +131,15 @@ class RAGEvaluation:
             retrieved_contexts = [doc.page_content for doc in result_chain["context"]]
             data["user_input"].append(query)
             data["retrieved_contexts"].append(retrieved_contexts)
-            data["response"].append(self.rag_chain.invoke(query)['answer'])
+            data["response"].append(result_chain['answer'])
 
         self.dataset = Dataset.from_dict(data)
         self.save_to_cache(self.dataset, cache_file)
 
-    async def async_adapt_prompts(self, llm_wrapper):
-        await faithfulness.adapt_prompts(language="english", llm=llm_wrapper)
-
-    def evaluate(self, clean_file_path, eval_file_path):
-        """
-        Evaluates the RAG system after preprocessing and preparing the dataset.
-        Args:
-            clean_file_path (str): Path to the clean dataset file.
-            eval_file_path (str): Path to the evaluation file.
-        Returns:
-            pd.DataFrame: Evaluation results as a Pandas DataFrame.
-        """
+    def evaluate(self, clean_file_path, eval_file_path, vector_db, ks=[2], k_mrr=2):
         cache_file = self.get_dynamic_filename("evaluation_result", "evaluation")
         cache_path = Path(cache_file)
 
-        # Check for cached evaluation results
         if cache_path.exists():
             self.evaluation_result = self.load_from_cache(cache_file)
             if isinstance(self.evaluation_result, pd.DataFrame):
@@ -168,7 +149,6 @@ class RAGEvaluation:
             else:
                 raise TypeError("Cached evaluation result is not in a compatible format.")
 
-        # Preprocess and prepare dataset
         self.preprocess(clean_file_path, eval_file_path)
         self.prepare_dataset()
 
@@ -186,7 +166,6 @@ class RAGEvaluation:
             answer_correctness,
         ]
 
-        # Perform evaluation
         self.evaluation_result = evaluate(
             dataset=self.dataset,
             metrics=ragas_metrics,
@@ -199,26 +178,169 @@ class RAGEvaluation:
 
         result = self.evaluation_result.to_pandas()
 
-        # Save the serialized dictionary to the cache
+        print("Calculating non-LLM-based metrics...")
+        mrr = self.compute_mrr(vector_db, k=k_mrr)
+        self.compute_precision_at_k(vector_db, ks=[2])
+        self.compute_recall_at_k(vector_db, ks=[2])
+
+        result['MRR'] = mrr
+        result[f'precision@2'] = self.eval_test[f'precision@2']
+        result[f'recall@2'] = self.eval_test[f'recall@2']
+
         self.save_to_cache(result, cache_file)
 
         print("Evaluation complete.")
         return result
 
+    def compute_mrr(self, vector_db, k=2):
+        rrs = []
+        for _, row in tqdm(self.eval_test.iterrows(), desc="Computing MRR", total=len(self.eval_test)):
+            query = row['question']
+            retrieved_docs = vector_db.search_similar_w_scores(query, k=k)
+            retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
+            ground_truth_id = row['top_score_id']
+
+            try:
+                index = retrieved_doc_ids.index(ground_truth_id)
+                rr = 1 / (index + 1)
+            except ValueError:
+                rr = 0
+            rrs.append(rr)
+
+        self.eval_test['rr'] = rrs
+        mrr = np.mean(rrs)
+        print(f"MRR: {mrr}")
+        return mrr
+
+    def compute_precision_at_k(self, vector_db, ks=[2]):
+        k = ks[0]
+        self.eval_test[f'precision@{k}'] = np.nan
+
+        for _, row in tqdm(self.eval_test.iterrows(), desc="Computing Precision@2", total=len(self.eval_test)):
+            query = row['question']
+            retrieved_docs = vector_db.search_similar_w_scores(query, k=k)
+            retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
+            ground_truth_id = row['top_score_id']
+
+            relevant_docs = sum([1 for doc_id in retrieved_doc_ids[:k] if doc_id == ground_truth_id])
+            precision = relevant_docs / k
+            self.eval_test.at[_, f'precision@{k}'] = precision
+
+    def compute_recall_at_k(self, vector_db, ks=[2]):
+        k = ks[0]
+        self.eval_test[f'recall@{k}'] = np.nan
+
+        for _, row in tqdm(self.eval_test.iterrows(), desc="Computing Recall@2", total=len(self.eval_test)):
+            query = row['question']
+            retrieved_docs = vector_db.search_similar_w_scores(query, k=k)
+            retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
+            ground_truth_id = row['top_score_id']
+
+            is_relevant_retrieved = int(ground_truth_id in retrieved_doc_ids[:k])
+            recall = is_relevant_retrieved
+            self.eval_test.at[_, f'recall@{k}'] = recall
+
     def plot_eval_result(self, df):
+
+        sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
+
         columns = [
-            #'faithfulness',
+            'faithfulness',
             'answer_relevancy',
+            'context_recall',
             'context_precision',
             'context_entity_recall',
-            'semantic_similarity',
+            'answer_similarity',
             'answer_correctness',
         ]
+
         plt.figure(figsize=(12, 6))
         sns.boxplot(data=df[columns], palette="Set2", width=0.6, linewidth=1.5)
-        plt.title(f"Boxplot of Eval Scores {self.name}", fontsize=16)
+        plt.title(f"{self.name}: Ragas Metrics boxplot", fontsize=16)
         plt.ylabel("Score", fontsize=14)
         plt.xticks(fontsize=12, rotation=20)
         plt.tight_layout()
         plt.show()
 
+    def plot_eval_result_bar(self, results):
+        """
+            Plot a barplot of evaluation scores for RAGAS metrics, MRR, precision@2, and recall@2.
+            Args:
+                results (pd.DataFrame): The results DataFrame from the evaluation.
+            """
+        sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
+
+        ragas_metrics = [
+            'faithfulness',
+            'answer_relevancy',
+            'context_precision',
+            'context_recall',
+            'context_entity_recall',
+            'semantic_similarity',
+            'answer_correctness',
+        ]
+        additional_metrics = ['MRR', 'precision@2', 'recall@2']
+        all_metrics = ragas_metrics + additional_metrics
+
+        metric_means = results[all_metrics].mean()
+
+        plt.figure(figsize=(12, 6))
+        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set2", hue=metric_means.index, legend=False)
+        plt.title(f"{self.name}: Ragas + Non-LLM Metrics (Mean)", fontsize=16)
+        plt.ylabel("Mean Score", fontsize=14)
+        plt.xlabel("Metrics", fontsize=14)
+        plt.xticks(fontsize=12, rotation=20)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_results_all(self, df, results):
+        """
+        Display both the boxplot for RAGAS metrics and the barplot for RAGAS + non-LLM metrics.
+        Args:
+            df (pd.DataFrame): DataFrame containing raw RAGAS metric values for the boxplot.
+            results (pd.DataFrame): DataFrame containing RAGAS and non-LLM metric scores for the barplot.
+        """
+        sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
+
+        # Boxplot: RAGAS Metrics
+        boxplot_columns = [
+            'faithfulness',
+            'answer_relevancy',
+            'context_recall',
+            'context_precision',
+            'context_entity_recall',
+            'semantic_similarity',
+            'answer_correctness',
+        ]
+
+        plt.figure(figsize=(12, 6))
+        sns.boxplot(data=df[boxplot_columns], palette="Set2", width=0.6, linewidth=1.5)
+        plt.title(f"{self.name}: RAGAS Metrics Boxplot", fontsize=16)
+        plt.ylabel("Score", fontsize=14)
+        plt.xticks(fontsize=12, rotation=20)
+        plt.tight_layout()
+        plt.show()
+
+        # Barplot: RAGAS + Non-LLM Metrics
+        ragas_metrics = [
+            'faithfulness',
+            'answer_relevancy',
+            'context_recall',
+            'context_precision',
+            'context_entity_recall',
+            'semantic_similarity',
+            'answer_correctness',
+        ]
+        additional_metrics = ['MRR', 'precision@2', 'recall@2']
+        all_metrics = ragas_metrics + additional_metrics
+
+        metric_means = results[all_metrics].mean()
+
+        plt.figure(figsize=(12, 6))
+        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set2", hue=metric_means.index, legend=False)
+        plt.title(f"{self.name}: RAGAS + Non-LLM Metrics (Mean)", fontsize=16)
+        plt.ylabel("Mean Score", fontsize=14)
+        plt.xlabel("Metrics", fontsize=14)
+        plt.xticks(fontsize=12, rotation=20)
+        plt.tight_layout()
+        plt.show()
