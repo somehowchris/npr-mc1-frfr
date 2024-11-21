@@ -14,7 +14,6 @@ from ragas.metrics import (
     faithfulness,
     answer_relevancy,
     context_precision,
-    context_recall,
     context_entity_recall,
     answer_similarity,
     answer_correctness,
@@ -72,6 +71,18 @@ class RAGEvaluation:
             print(f"Loading cached data from: {cache_file}")
             return pickle.load(f)
 
+    @staticmethod
+    def extract_answer(result_chain):
+        """
+        Extract the answer from the result chain, handling both flat and nested structure
+        :param result_chain:
+        :return:
+        """
+        answer = result_chain.get('answer')
+        if isinstance(answer, dict) and 'answer' in answer:
+            return answer['answer']
+        return answer
+
     def get_dynamic_filename(self, base_name, step):
         embedding_model_name = getattr(self.embeddings, "model_name", "unknown_embedding_model")
         prefix = self.local_llm + "_" if self.local_llm else ""
@@ -79,10 +90,10 @@ class RAGEvaluation:
         if step == "preprocess":
             return CACHE_DIR / f"{base_name}.pkl"
         elif step == "dataset":
-            return CACHE_DIR / f"{prefix}{embedding_model_name}_dataset.pkl"
+            return CACHE_DIR / f"{self.name}_{prefix}{embedding_model_name}_dataset.pkl"
         elif step == "evaluation":
             global_llm_name = getattr(self.llm_model, "model_name", "unknown_global_llm")
-            return CACHE_DIR / f"{prefix}{embedding_model_name}_{global_llm_name}_eval_result.pkl"
+            return CACHE_DIR / f"{self.name}_{prefix}{embedding_model_name}_{global_llm_name}_eval_result.pkl"
         else:
             raise ValueError(f"Unknown step: {step}")
 
@@ -119,6 +130,7 @@ class RAGEvaluation:
         questions = self.eval_test['question'].tolist()
         ground_truth = self.eval_test['ground_truth'].tolist()
         ground_truth_nested = [[item] for item in ground_truth]
+        top_score_id = self.eval_test['top_score_id'].tolist()
 
         data = {
             "user_input": [],
@@ -126,19 +138,28 @@ class RAGEvaluation:
             "reference_contexts": ground_truth_nested,
             "response": [],
             "reference": ground_truth,
+
+            # Mrr columns
+            "origin_doc_id": [],
+            "top_score_id": [],
         }
 
         for query in tqdm(questions, desc="Preprocessing queries"):
             result_chain = self.rag_chain.invoke(query)
 
+            answer = self.extract_answer(result_chain)
+
             # Extract plain text content for retrieved_contexts
-            retrieved_contexts = [doc.page_content for doc in result_chain["context"]]
+            retrieved_contexts = [doc.page_content for doc in result_chain["context"]]  # Extract text content
+            retrieved_metadata = [doc.metadata for doc in result_chain["context"]]  # Extract metadata
 
             data["user_input"].append(query)
             data["retrieved_contexts"].append(retrieved_contexts)  # List of strings
-            data["response"].append(result_chain['answer'])
+            data["response"].append(answer)
+            data["top_score_id"].append(top_score_id)
+            data["origin_doc_id"].append([metadata.get('origin_doc_id') for metadata in retrieved_metadata])
 
-        # Convert to Dataset without modifying the data types
+        # Convert to Dataset
         self.dataset = Dataset.from_dict(data)
         self.save_to_cache(self.dataset, cache_file)
 
@@ -159,13 +180,12 @@ class RAGEvaluation:
         self.prepare_dataset()
 
         print("Evaluating the RAG system...")
-        run_config = RunConfig(timeout=3600)
+        run_config = RunConfig(timeout=600, max_retries=10, max_wait=60, max_workers=16)
         evaluator_llm = LangchainLLMWrapper(self.llm_model)
 
         ragas_metrics = [
             faithfulness,
             answer_relevancy,
-            context_recall,
             context_precision,
             context_entity_recall,
             answer_similarity,
@@ -185,7 +205,7 @@ class RAGEvaluation:
         result = self.evaluation_result.to_pandas()
 
         print("Calculating non-LLM-based metrics...")
-        mrr = self.compute_mrr(vector_db, k=k_mrr)
+        mrr = self.compute_mrr(vector_db)
         self.compute_precision_at_k(vector_db, ks=[2])
         self.compute_recall_at_k(vector_db, ks=[2])
 
@@ -198,11 +218,11 @@ class RAGEvaluation:
         print("Evaluation complete.")
         return result
 
-    def compute_mrr(self, vector_db, k=2):
+    def compute_mrr(self, vector_db):
         rrs = []
         for _, row in tqdm(self.eval_test.iterrows(), desc="Computing MRR", total=len(self.eval_test)):
             query = row['question']
-            retrieved_docs = vector_db.search_similar_w_scores(query, k=k)
+            retrieved_docs = vector_db.search_similar_w_scores(query)
             retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
             ground_truth_id = row['top_score_id']
 
@@ -253,7 +273,6 @@ class RAGEvaluation:
         columns = [
             'faithfulness',
             'answer_relevancy',
-            'context_recall',
             'context_precision',
             'context_entity_recall',
             'answer_similarity',
@@ -280,7 +299,6 @@ class RAGEvaluation:
             'faithfulness',
             'answer_relevancy',
             'context_precision',
-            'context_recall',
             'context_entity_recall',
             'semantic_similarity',
             'answer_correctness',
@@ -330,7 +348,6 @@ class RAGEvaluation:
         ragas_metrics = [
             'faithfulness',
             'answer_relevancy',
-            'context_recall',
             'context_precision',
             'context_entity_recall',
             'semantic_similarity',

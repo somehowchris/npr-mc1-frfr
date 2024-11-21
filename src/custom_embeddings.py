@@ -22,7 +22,7 @@ class CustomHuggingFaceEndpointEmbeddings(HuggingFaceEndpointEmbeddings):
         super().__init__(*args, **kwargs)
         self.model_name = model_name or self.model
 
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: List[Any]) -> List[List[float]]:
         """
         Call out to HuggingFaceHub's embedding endpoint for embedding search docs.
 
@@ -32,7 +32,8 @@ class CustomHuggingFaceEndpointEmbeddings(HuggingFaceEndpointEmbeddings):
         Returns:
             List of embeddings, one for each text.
         """
-        texts = [text.replace("\n", " ") for text in texts]
+        # Convert all elements to strings and replace newlines
+        texts = [str(text).replace("\n", " ") for text in texts]
         _model_kwargs = self.model_kwargs or {}
         responses = self.client.post(
             json={"inputs": texts, **_model_kwargs}, task=self.task
