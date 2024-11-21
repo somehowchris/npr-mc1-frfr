@@ -1,3 +1,5 @@
 .venv
 .conda
 .DS_Store
+*.pkl
+.env
