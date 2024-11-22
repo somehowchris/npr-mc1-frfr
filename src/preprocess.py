@@ -4,6 +4,9 @@ from bs4 import BeautifulSoup
 import re
 from tqdm import tqdm
 import hashlib
+from pandarallel import pandarallel
+
+pandarallel.initialize(progress_bar=True)
 
 
 class TextPreprocessor:
@@ -27,7 +30,7 @@ class TextPreprocessor:
 
     def preprocess_data(self):
         tqdm.pandas()
-        self.data = self.data.loc[self.data[self.column].progress_apply(self.detect_english)]
+        self.data = self.data.loc[self.data[self.column].parallel_apply(self.detect_english)]
         self.data.loc[:, self.column] = self.data[self.column].progress_apply(self.clean_text)
         self.data = self.data.drop_duplicates(subset=[self.column])
         return self.data
