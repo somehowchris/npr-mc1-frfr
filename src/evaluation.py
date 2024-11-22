@@ -280,14 +280,14 @@ class RAGEvaluation:
         ]
 
         plt.figure(figsize=(12, 6))
-        sns.boxplot(data=df[columns], palette="Set2", width=0.6, linewidth=1.5)
+        sns.boxplot(data=df[columns], palette="Set1", width=0.6, linewidth=1.5)
         plt.title(f"{self.name}: Ragas Metrics boxplot", fontsize=16)
         plt.ylabel("Score", fontsize=14)
         plt.xticks(fontsize=12, rotation=20)
         plt.tight_layout()
         plt.show()
 
-    def plot_eval_result_bar(self, results):
+    def plot_eval_result_bar(self, df):
         """
             Plot a barplot of evaluation scores for RAGAS metrics, MRR, precision@2, and recall@2.
             Args:
@@ -306,10 +306,10 @@ class RAGEvaluation:
         additional_metrics = ['MRR', 'precision@2', 'recall@2']
         all_metrics = ragas_metrics + additional_metrics
 
-        metric_means = results[all_metrics].mean()
+        metric_means = df[all_metrics].mean()
 
         plt.figure(figsize=(12, 6))
-        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set2", hue=metric_means.index, legend=False)
+        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set1", hue=metric_means.index, legend=False)
         plt.title(f"{self.name}: Ragas + Non-LLM Metrics (Mean)", fontsize=16)
         plt.ylabel("Mean Score", fontsize=14)
         plt.xlabel("Metrics", fontsize=14)
@@ -317,7 +317,7 @@ class RAGEvaluation:
         plt.tight_layout()
         plt.show()
 
-    def plot_results_all(self, df, results):
+    def plot_results_all(self, df):
         """
         Display both the boxplot for RAGAS metrics and the barplot for RAGAS + non-LLM metrics.
         Args:
@@ -337,7 +337,7 @@ class RAGEvaluation:
         ]
 
         plt.figure(figsize=(12, 6))
-        sns.boxplot(data=df[boxplot_columns], palette="Set2", width=0.6, linewidth=1.5)
+        sns.boxplot(data=df[boxplot_columns], palette="Set1", width=0.6, linewidth=1.5)
         plt.title(f"{self.name}: RAGAS Metrics Boxplot", fontsize=16)
         plt.ylabel("Score", fontsize=14)
         plt.xticks(fontsize=12, rotation=20)
@@ -356,10 +356,10 @@ class RAGEvaluation:
         additional_metrics = ['MRR', 'precision@2', 'recall@2']
         all_metrics = ragas_metrics + additional_metrics
 
-        metric_means = results[all_metrics].mean()
+        metric_means = df[all_metrics].mean()
 
         plt.figure(figsize=(12, 6))
-        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set2", hue=metric_means.index, legend=False)
+        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set1", hue=metric_means.index, legend=False)
         plt.title(f"{self.name}: RAGAS + Non-LLM Metrics (Mean)", fontsize=16)
         plt.ylabel("Mean Score", fontsize=14)
         plt.xlabel("Metrics", fontsize=14)
