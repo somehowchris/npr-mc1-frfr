@@ -26,6 +26,7 @@ from src.config import CACHE_DIR
 
 nest_asyncio.apply()
 
+
 class RAGEvaluation:
     def __init__(self, name, rag_chain, llm_model, embeddings, local_llm=None):
         self.name = name
@@ -47,27 +48,29 @@ class RAGEvaluation:
         similarity_score = 0
         similarity_score_index = None
         for idx, doc in clean_df.iterrows():
-            score = fuzz.partial_ratio(eval_input_chunk, doc['content'])
+            score = fuzz.partial_ratio(eval_input_chunk, doc["content"])
             if score > similarity_score:
                 similarity_score = score
-                similarity_score_index = doc['id']
+                similarity_score_index = doc["id"]
         return similarity_score, similarity_score_index
 
     @staticmethod
     def apply_find_most_similar(row, clean_df):
-        score, score_index = RAGEvaluation.find_most_similar(clean_df, row['relevant_text'])
+        score, score_index = RAGEvaluation.find_most_similar(
+            clean_df, row["relevant_text"]
+        )
         return pd.Series([score, score_index])
 
     @staticmethod
     def save_to_cache(data, cache_file):
         os.makedirs(Path(cache_file).parent, exist_ok=True)
-        with open(cache_file, 'wb') as f:
+        with open(cache_file, "wb") as f:
             pickle.dump(data, f)
         print(f"Data cached at: {cache_file}")
 
     @staticmethod
     def load_from_cache(cache_file):
-        with open(cache_file, 'rb') as f:
+        with open(cache_file, "rb") as f:
             print(f"Loading cached data from: {cache_file}")
             return pickle.load(f)
 
@@ -78,13 +81,15 @@ class RAGEvaluation:
         :param result_chain:
         :return:
         """
-        answer = result_chain.get('answer')
-        if isinstance(answer, dict) and 'answer' in answer:
-            return answer['answer']
+        answer = result_chain.get("answer")
+        if isinstance(answer, dict) and "answer" in answer:
+            return answer["answer"]
         return answer
 
     def get_dynamic_filename(self, base_name, step):
-        embedding_model_name = getattr(self.embeddings, "model_name", "unknown_embedding_model")
+        embedding_model_name = getattr(
+            self.embeddings, "model_name", "unknown_embedding_model"
+        )
         prefix = self.local_llm + "_" if self.local_llm else ""
 
         if step == "preprocess":
@@ -92,8 +97,13 @@ class RAGEvaluation:
         elif step == "dataset":
             return CACHE_DIR / f"{self.name}_{prefix}{embedding_model_name}_dataset.pkl"
         elif step == "evaluation":
-            global_llm_name = getattr(self.llm_model, "model_name", "unknown_global_llm")
-            return CACHE_DIR / f"{self.name}_{prefix}{embedding_model_name}_{global_llm_name}_eval_result.pkl"
+            global_llm_name = getattr(
+                self.llm_model, "model_name", "unknown_global_llm"
+            )
+            return (
+                CACHE_DIR
+                / f"{self.name}_{prefix}{embedding_model_name}_{global_llm_name}_eval_result.pkl"
+            )
         else:
             raise ValueError(f"Unknown step: {step}")
 
@@ -107,14 +117,14 @@ class RAGEvaluation:
 
         print("Preprocessing data...")
         self.clean_dataset = pd.read_parquet(clean_file)
-        self.eval_test = pd.read_csv(eval_file, sep=';')
+        self.eval_test = pd.read_csv(eval_file, sep=";")
 
         pandarallel.initialize(progress_bar=True)
-        self.eval_test[['top_score', 'top_score_id']] = self.eval_test.parallel_apply(
+        self.eval_test[["top_score", "top_score_id"]] = self.eval_test.parallel_apply(
             RAGEvaluation.apply_find_most_similar, args=(self.clean_dataset,), axis=1
         )
         self.eval_test = self.eval_test.drop_duplicates().copy()
-        self.eval_test = self.eval_test.rename(columns={'answer': 'ground_truth'})
+        self.eval_test = self.eval_test.rename(columns={"answer": "ground_truth"})
 
         self.save_to_cache(self.eval_test, cache_file)
 
@@ -127,10 +137,10 @@ class RAGEvaluation:
             return
 
         print("Preparing evaluation dataset...")
-        questions = self.eval_test['question'].tolist()
-        ground_truth = self.eval_test['ground_truth'].tolist()
+        questions = self.eval_test["question"].tolist()
+        ground_truth = self.eval_test["ground_truth"].tolist()
         ground_truth_nested = [[item] for item in ground_truth]
-        top_score_id = self.eval_test['top_score_id'].tolist()
+        top_score_id = self.eval_test["top_score_id"].tolist()
 
         data = {
             "user_input": [],
@@ -138,7 +148,6 @@ class RAGEvaluation:
             "reference_contexts": ground_truth_nested,
             "response": [],
             "reference": ground_truth,
-
             # Mrr columns
             "origin_doc_id": [],
             "top_score_id": [],
@@ -150,14 +159,20 @@ class RAGEvaluation:
             answer = self.extract_answer(result_chain)
 
             # Extract plain text content for retrieved_contexts
-            retrieved_contexts = [doc.page_content for doc in result_chain["context"]]  # Extract text content
-            retrieved_metadata = [doc.metadata for doc in result_chain["context"]]  # Extract metadata
+            retrieved_contexts = [
+                doc.page_content for doc in result_chain["context"]
+            ]  # Extract text content
+            retrieved_metadata = [
+                doc.metadata for doc in result_chain["context"]
+            ]  # Extract metadata
 
             data["user_input"].append(query)
             data["retrieved_contexts"].append(retrieved_contexts)  # List of strings
             data["response"].append(answer)
             data["top_score_id"].append(top_score_id)
-            data["origin_doc_id"].append([metadata.get('origin_doc_id') for metadata in retrieved_metadata])
+            data["origin_doc_id"].append(
+                [metadata.get("origin_doc_id") for metadata in retrieved_metadata]
+            )
 
         # Convert to Dataset
         self.dataset = Dataset.from_dict(data)
@@ -171,10 +186,12 @@ class RAGEvaluation:
             self.evaluation_result = self.load_from_cache(cache_file)
             if isinstance(self.evaluation_result, pd.DataFrame):
                 return self.evaluation_result
-            elif hasattr(self.evaluation_result, 'to_pandas'):
+            elif hasattr(self.evaluation_result, "to_pandas"):
                 return self.evaluation_result.to_pandas()
             else:
-                raise TypeError("Cached evaluation result is not in a compatible format.")
+                raise TypeError(
+                    "Cached evaluation result is not in a compatible format."
+                )
 
         self.preprocess(clean_file_path, eval_file_path)
         self.prepare_dataset()
@@ -209,9 +226,9 @@ class RAGEvaluation:
         self.compute_precision_at_k(vector_db, ks=[2])
         self.compute_recall_at_k(vector_db, ks=[2])
 
-        result['MRR'] = mrr
-        result[f'precision@2'] = self.eval_test[f'precision@2']
-        result[f'recall@2'] = self.eval_test[f'recall@2']
+        result["MRR"] = mrr
+        result[f"precision@2"] = self.eval_test[f"precision@2"]
+        result[f"recall@2"] = self.eval_test[f"recall@2"]
 
         self.save_to_cache(result, cache_file)
 
@@ -220,11 +237,15 @@ class RAGEvaluation:
 
     def compute_mrr(self, vector_db):
         rrs = []
-        for _, row in tqdm(self.eval_test.iterrows(), desc="Computing MRR", total=len(self.eval_test)):
-            query = row['question']
+        for _, row in tqdm(
+            self.eval_test.iterrows(), desc="Computing MRR", total=len(self.eval_test)
+        ):
+            query = row["question"]
             retrieved_docs = vector_db.search_similar_w_scores(query)
-            retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
-            ground_truth_id = row['top_score_id']
+            retrieved_doc_ids = [
+                doc[0].metadata["origin_doc_id"] for doc in retrieved_docs
+            ]
+            ground_truth_id = row["top_score_id"]
 
             try:
                 index = retrieved_doc_ids.index(ground_truth_id)
@@ -233,50 +254,64 @@ class RAGEvaluation:
                 rr = 0
             rrs.append(rr)
 
-        self.eval_test['rr'] = rrs
+        self.eval_test["rr"] = rrs
         mrr = np.mean(rrs)
         print(f"MRR: {mrr}")
         return mrr
 
     def compute_precision_at_k(self, vector_db, ks=[2]):
         k = ks[0]
-        self.eval_test[f'precision@{k}'] = np.nan
+        self.eval_test[f"precision@{k}"] = np.nan
 
-        for _, row in tqdm(self.eval_test.iterrows(), desc="Computing Precision@2", total=len(self.eval_test)):
-            query = row['question']
+        for _, row in tqdm(
+            self.eval_test.iterrows(),
+            desc="Computing Precision@2",
+            total=len(self.eval_test),
+        ):
+            query = row["question"]
             retrieved_docs = vector_db.search_similar_w_scores(query, k=k)
-            retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
-            ground_truth_id = row['top_score_id']
+            retrieved_doc_ids = [
+                doc[0].metadata["origin_doc_id"] for doc in retrieved_docs
+            ]
+            ground_truth_id = row["top_score_id"]
 
-            relevant_docs = sum([1 for doc_id in retrieved_doc_ids[:k] if doc_id == ground_truth_id])
+            relevant_docs = sum(
+                [1 for doc_id in retrieved_doc_ids[:k] if doc_id == ground_truth_id]
+            )
             precision = relevant_docs / k
-            self.eval_test.at[_, f'precision@{k}'] = precision
+            self.eval_test.at[_, f"precision@{k}"] = precision
 
     def compute_recall_at_k(self, vector_db, ks=[2]):
         k = ks[0]
-        self.eval_test[f'recall@{k}'] = np.nan
+        self.eval_test[f"recall@{k}"] = np.nan
 
-        for _, row in tqdm(self.eval_test.iterrows(), desc="Computing Recall@2", total=len(self.eval_test)):
-            query = row['question']
+        for _, row in tqdm(
+            self.eval_test.iterrows(),
+            desc="Computing Recall@2",
+            total=len(self.eval_test),
+        ):
+            query = row["question"]
             retrieved_docs = vector_db.search_similar_w_scores(query, k=k)
-            retrieved_doc_ids = [doc[0].metadata['origin_doc_id'] for doc in retrieved_docs]
-            ground_truth_id = row['top_score_id']
+            retrieved_doc_ids = [
+                doc[0].metadata["origin_doc_id"] for doc in retrieved_docs
+            ]
+            ground_truth_id = row["top_score_id"]
 
             is_relevant_retrieved = int(ground_truth_id in retrieved_doc_ids[:k])
             recall = is_relevant_retrieved
-            self.eval_test.at[_, f'recall@{k}'] = recall
+            self.eval_test.at[_, f"recall@{k}"] = recall
 
     def plot_eval_result(self, df):
 
         sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
 
         columns = [
-            'faithfulness',
-            'answer_relevancy',
-            'context_precision',
-            'context_entity_recall',
-            'answer_similarity',
-            'answer_correctness',
+            "faithfulness",
+            "answer_relevancy",
+            "context_precision",
+            "context_entity_recall",
+            "answer_similarity",
+            "answer_correctness",
         ]
 
         plt.figure(figsize=(12, 6))
@@ -289,27 +324,33 @@ class RAGEvaluation:
 
     def plot_eval_result_bar(self, df):
         """
-            Plot a barplot of evaluation scores for RAGAS metrics, MRR, precision@2, and recall@2.
-            Args:
-                results (pd.DataFrame): The results DataFrame from the evaluation.
-            """
+        Plot a barplot of evaluation scores for RAGAS metrics, MRR, precision@2, and recall@2.
+        Args:
+            results (pd.DataFrame): The results DataFrame from the evaluation.
+        """
         sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
 
         ragas_metrics = [
-            'faithfulness',
-            'answer_relevancy',
-            'context_precision',
-            'context_entity_recall',
-            'semantic_similarity',
-            'answer_correctness',
+            "faithfulness",
+            "answer_relevancy",
+            "context_precision",
+            "context_entity_recall",
+            "semantic_similarity",
+            "answer_correctness",
         ]
-        additional_metrics = ['MRR', 'precision@2', 'recall@2']
+        additional_metrics = ["MRR", "precision@2", "recall@2"]
         all_metrics = ragas_metrics + additional_metrics
 
         metric_means = df[all_metrics].mean()
 
         plt.figure(figsize=(12, 6))
-        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set1", hue=metric_means.index, legend=False)
+        sns.barplot(
+            x=metric_means.index,
+            y=metric_means.values,
+            palette="Set1",
+            hue=metric_means.index,
+            legend=False,
+        )
         plt.title(f"{self.name}: Ragas + Non-LLM Metrics (Mean)", fontsize=16)
         plt.ylabel("Mean Score", fontsize=14)
         plt.xlabel("Metrics", fontsize=14)
@@ -328,12 +369,12 @@ class RAGEvaluation:
 
         # Boxplot: RAGAS Metrics
         boxplot_columns = [
-            'faithfulness',
-            'answer_relevancy',
-            'context_precision',
-            'context_entity_recall',
-            'semantic_similarity',
-            'answer_correctness',
+            "faithfulness",
+            "answer_relevancy",
+            "context_precision",
+            "context_entity_recall",
+            "semantic_similarity",
+            "answer_correctness",
         ]
 
         plt.figure(figsize=(12, 6))
@@ -346,20 +387,26 @@ class RAGEvaluation:
 
         # Barplot: RAGAS + Non-LLM Metrics
         ragas_metrics = [
-            'faithfulness',
-            'answer_relevancy',
-            'context_precision',
-            'context_entity_recall',
-            'semantic_similarity',
-            'answer_correctness',
+            "faithfulness",
+            "answer_relevancy",
+            "context_precision",
+            "context_entity_recall",
+            "semantic_similarity",
+            "answer_correctness",
         ]
-        additional_metrics = ['MRR', 'precision@2', 'recall@2']
+        additional_metrics = ["MRR", "precision@2", "recall@2"]
         all_metrics = ragas_metrics + additional_metrics
 
         metric_means = df[all_metrics].mean()
 
         plt.figure(figsize=(12, 6))
-        sns.barplot(x=metric_means.index, y=metric_means.values, palette="Set1", hue=metric_means.index, legend=False)
+        sns.barplot(
+            x=metric_means.index,
+            y=metric_means.values,
+            palette="Set1",
+            hue=metric_means.index,
+            legend=False,
+        )
         plt.title(f"{self.name}: RAGAS + Non-LLM Metrics (Mean)", fontsize=16)
         plt.ylabel("Mean Score", fontsize=14)
         plt.xlabel("Metrics", fontsize=14)
