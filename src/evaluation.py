@@ -85,7 +85,6 @@ class RAGEvaluation:
         if isinstance(answer, dict) and "answer" in answer:
             return answer["answer"]
         return answer
-
     def get_dynamic_filename(self, base_name: str, step: str):
         embedding_model_name = getattr(
             self.embeddings, "model_name", "unknown_embedding_model"

@@ -147,9 +147,7 @@ def plot_compare_result(df: pd.DataFrame):
     plt.show()
 
 
-def create_documents(
-    df: pd.DataFrame, text_splitter: Any, verbose: bool = True
-):
+def create_documents(df: pd.DataFrame, text_splitter: Any, verbose: bool =True):
     metadata_cols = ["url", "domain", "title", "date", "id"]
     if not all(col in df.columns for col in metadata_cols + ["content"]):
         raise ValueError(
