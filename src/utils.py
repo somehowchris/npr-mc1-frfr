@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from tqdm import tqdm
+from typing import Any
 
 
-def plot_combined_boxplot(df):
+def plot_combined_boxplot(df: pd.DataFrame):
     sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
 
     columns = [
@@ -35,7 +35,7 @@ def plot_combined_boxplot(df):
     plt.show()
 
 
-def plot_combined_barplot(df):
+def plot_combined_barplot(df: pd.DataFrame):
     sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
 
     ragas_metrics = [
@@ -73,7 +73,7 @@ def plot_combined_barplot(df):
     plt.show()
 
 
-def plot_compare_result(df):
+def plot_compare_result(df: pd.DataFrame):
     """
     Plot comparison results by generating both a bar plot and a box plot.
     Ensures consistent order of evaluation names in both plots and fixes warnings.
@@ -83,7 +83,6 @@ def plot_compare_result(df):
     """
     sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
 
-    # Define metrics
     ragas_metrics = [
         "faithfulness",
         "answer_relevancy",
@@ -95,7 +94,6 @@ def plot_compare_result(df):
     additional_metrics = ["MRR", "precision@2", "recall@2"]
     all_metrics = ragas_metrics + additional_metrics
 
-    # Ensure consistent ordering of 'evaluation_name'
     evaluation_order = df[
         "evaluation_name"
     ].unique()  # Get the unique order in the data
@@ -103,7 +101,6 @@ def plot_compare_result(df):
         df["evaluation_name"], categories=evaluation_order, ordered=True
     )
 
-    # Barplot
     metric_means = (
         df.groupby("evaluation_name", observed=False)[all_metrics]
         .mean()
@@ -150,7 +147,7 @@ def plot_compare_result(df):
     plt.show()
 
 
-def create_documents(df: pd.DataFrame, text_splitter, verbose=True):
+def create_documents(df: pd.DataFrame, text_splitter: Any, verbose: bool =True):
     metadata_cols = ["url", "domain", "title", "date", "id"]
     if not all(col in df.columns for col in metadata_cols + ["content"]):
         raise ValueError(
@@ -176,7 +173,9 @@ def create_documents(df: pd.DataFrame, text_splitter, verbose=True):
     return docs
 
 
-def add_to_combined(eval_name, new_df, combined_df=None):
+def add_to_combined(
+    eval_name: str, new_df: pd.DataFrame, combined_df: pd.DataFrame = None
+):
     new_df["evaluation_name"] = eval_name
     if combined_df is not None:
         return pd.concat([combined_df, new_df], ignore_index=True)

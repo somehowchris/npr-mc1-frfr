@@ -1,4 +1,3 @@
-import os
 import chromadb
 from tqdm import tqdm
 import numpy as np

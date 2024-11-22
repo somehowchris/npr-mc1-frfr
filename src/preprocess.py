@@ -11,17 +11,17 @@ pandarallel.initialize(progress_bar=True)
 
 class TextPreprocessor:
 
-    def __init__(self, df, column_to_clean):
+    def __init__(self, df: pd.DataFrame, column_to_clean: str):
         self.data = df
         self.column = column_to_clean
 
-    def detect_english(self, text):
+    def detect_english(self, text: str):
         try:
             return detect(text) == "en"
-        except:
+        except Exception:
             return False
 
-    def clean_text(self, text):
+    def clean_text(self, text: str):
         soup = BeautifulSoup(text, "html.parser")
         text = soup.get_text(separator=" ")
         text = re.sub(r"[^a-zA-Z0-9.,?!]", " ", text)

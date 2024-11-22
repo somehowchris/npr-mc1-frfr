@@ -1,8 +1,8 @@
 import os
 import pickle
 import nest_asyncio
-import asyncio
 from pathlib import Path
+from typing import List, Any
 import pandas as pd
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
@@ -40,11 +40,11 @@ class RAGEvaluation:
         self.evaluation_result = None
 
     @staticmethod
-    def compute_similarity(text_1, text_2):
+    def compute_similarity(text_1: str, text_2: str):
         return fuzz.partial_ratio(text_1, text_2)
 
     @staticmethod
-    def find_most_similar(clean_df, eval_input_chunk):
+    def find_most_similar(clean_df: pd.DataFrame, eval_input_chunk: str):
         similarity_score = 0
         similarity_score_index = None
         for idx, doc in clean_df.iterrows():
@@ -55,27 +55,27 @@ class RAGEvaluation:
         return similarity_score, similarity_score_index
 
     @staticmethod
-    def apply_find_most_similar(row, clean_df):
+    def apply_find_most_similar(row: pd.Series, clean_df: pd.DataFrame):
         score, score_index = RAGEvaluation.find_most_similar(
             clean_df, row["relevant_text"]
         )
         return pd.Series([score, score_index])
 
     @staticmethod
-    def save_to_cache(data, cache_file):
+    def save_to_cache(data: Any, cache_file: str):
         os.makedirs(Path(cache_file).parent, exist_ok=True)
         with open(cache_file, "wb") as f:
             pickle.dump(data, f)
         print(f"Data cached at: {cache_file}")
 
     @staticmethod
-    def load_from_cache(cache_file):
+    def load_from_cache(cache_file: str):
         with open(cache_file, "rb") as f:
             print(f"Loading cached data from: {cache_file}")
             return pickle.load(f)
 
     @staticmethod
-    def extract_answer(result_chain):
+    def extract_answer(result_chain: dict):
         """
         Extract the answer from the result chain, handling both flat and nested structure
         :param result_chain:
@@ -85,8 +85,7 @@ class RAGEvaluation:
         if isinstance(answer, dict) and "answer" in answer:
             return answer["answer"]
         return answer
-
-    def get_dynamic_filename(self, base_name, step):
+    def get_dynamic_filename(self, base_name: str, step: str):
         embedding_model_name = getattr(
             self.embeddings, "model_name", "unknown_embedding_model"
         )
@@ -107,7 +106,7 @@ class RAGEvaluation:
         else:
             raise ValueError(f"Unknown step: {step}")
 
-    def preprocess(self, clean_file, eval_file):
+    def preprocess(self, clean_file: str, eval_file: str):
         cache_file = self.get_dynamic_filename("preprocessed", "preprocess")
         cache_path = Path(cache_file)
 
@@ -178,7 +177,14 @@ class RAGEvaluation:
         self.dataset = Dataset.from_dict(data)
         self.save_to_cache(self.dataset, cache_file)
 
-    def evaluate(self, clean_file_path, eval_file_path, vector_db, ks=[2], k_mrr=2):
+    def evaluate(
+        self,
+        clean_file_path: str,
+        eval_file_path: str,
+        vector_db: Any,
+        ks: List[int] = [2],
+        k_mrr: int = 2,
+    ):
         cache_file = self.get_dynamic_filename("evaluation_result", "evaluation")
         cache_path = Path(cache_file)
 
@@ -227,15 +233,15 @@ class RAGEvaluation:
         self.compute_recall_at_k(vector_db, ks=[2])
 
         result["MRR"] = mrr
-        result[f"precision@2"] = self.eval_test[f"precision@2"]
-        result[f"recall@2"] = self.eval_test[f"recall@2"]
+        result["precision@2"] = self.eval_test["precision@2"]
+        result["recall@2"] = self.eval_test["recall@2"]
 
         self.save_to_cache(result, cache_file)
 
         print("Evaluation complete.")
         return result
 
-    def compute_mrr(self, vector_db):
+    def compute_mrr(self, vector_db: Any):
         rrs = []
         for _, row in tqdm(
             self.eval_test.iterrows(), desc="Computing MRR", total=len(self.eval_test)
@@ -259,7 +265,7 @@ class RAGEvaluation:
         print(f"MRR: {mrr}")
         return mrr
 
-    def compute_precision_at_k(self, vector_db, ks=[2]):
+    def compute_precision_at_k(self, vector_db: Any, ks: List[int] = [2]):
         k = ks[0]
         self.eval_test[f"precision@{k}"] = np.nan
 
@@ -281,7 +287,7 @@ class RAGEvaluation:
             precision = relevant_docs / k
             self.eval_test.at[_, f"precision@{k}"] = precision
 
-    def compute_recall_at_k(self, vector_db, ks=[2]):
+    def compute_recall_at_k(self, vector_db: Any, ks: List[int] = [2]):
         k = ks[0]
         self.eval_test[f"recall@{k}"] = np.nan
 
@@ -301,7 +307,7 @@ class RAGEvaluation:
             recall = is_relevant_retrieved
             self.eval_test.at[_, f"recall@{k}"] = recall
 
-    def plot_eval_result(self, df):
+    def plot_eval_result(self, df: pd.DataFrame):
 
         sns.set_style("darkgrid", {"grid.color": ".6", "grid.linestyle": ":"})
 
@@ -322,7 +328,7 @@ class RAGEvaluation:
         plt.tight_layout()
         plt.show()
 
-    def plot_eval_result_bar(self, df):
+    def plot_eval_result_bar(self, df: pd.DataFrame):
         """
         Plot a barplot of evaluation scores for RAGAS metrics, MRR, precision@2, and recall@2.
         Args:
@@ -358,7 +364,7 @@ class RAGEvaluation:
         plt.tight_layout()
         plt.show()
 
-    def plot_results_all(self, df):
+    def plot_results_all(self, df: pd.DataFrame):
         """
         Display both the boxplot for RAGAS metrics and the barplot for RAGAS + non-LLM metrics.
         Args:

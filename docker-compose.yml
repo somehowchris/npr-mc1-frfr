@@ -1,9 +1,10 @@
 version: '3.9'
 services:
   baai-bge-m3:
-    image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
     container_name: baai-bge-m3
-    runtime: nvidia
+    platform: linux/amd64
+#    runtime: nvidia
     volumes:
       - ${DATA_VOLUME:-./docker-compose-data}:/data
     ports:
@@ -11,16 +12,17 @@ services:
     environment:
       - HUGGINGFACE_HUB_CACHE=/data
       - PORT=80
-      - USE_FLASH_ATTENTION=True
+#      - USE_FLASH_ATTENTION=True
     command: >
       --model-id BAAI/bge-m3
-      --max-client-batch-size 50000
+      --max-client-batch-size 4
       --payload-limit 100000000
 
   nomic-embed-text-v1-5:
-    image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
     container_name: nomic-embed-text-v1-5
-    runtime: nvidia
+    platform: linux/amd64
+#    runtime: nvidia
     volumes:
       - ${DATA_VOLUME:-./docker-compose-data}:/data
     ports:
@@ -28,16 +30,17 @@ services:
     environment:
       - HUGGINGFACE_HUB_CACHE=/data
       - PORT=80
-      - USE_FLASH_ATTENTION=True
+#      - USE_FLASH_ATTENTION=True
     command: >
       --model-id nomic-ai/nomic-embed-text-v1.5
-      --max-client-batch-size 50000
+      --max-client-batch-size 4
       --payload-limit 100000000
 
   alibaba-qwen2-7b-instruct:
-    image: ghcr.io/huggingface/text-embeddings-inference:1.5
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-latest
     container_name: alibaba-qwen2-7b-instruct
-    runtime: nvidia
+    platform: linux/amd64
+#    runtime: nvidia
     volumes:
       - ${DATA_VOLUME:-./docker-compose-data}:/data
     ports:
@@ -45,8 +48,8 @@ services:
     environment:
       - HUGGINGFACE_HUB_CACHE=/data
       - PORT=80
-      - USE_FLASH_ATTENTION=True
+#      - USE_FLASH_ATTENTION=True
     command: >
       --model-id Alibaba-NLP/gte-Qwen2-7B-instruct
-      --max-client-batch-size 50000
+      --max-client-batch-size 4
       --payload-limit 100000000

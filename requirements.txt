@@ -17,3 +17,8 @@ seaborn==0.13.2
 torch==2.5.1
 tqdm==4.66.6
 transformers==4.46.1
+python-dotenv=1.0.1
+nltk==3.9.1
+langchain_ollama==0.2.0
+ipywidgets==8.1.5
+black==24.10.0
