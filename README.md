@@ -12,6 +12,7 @@ The mini-challenge focuses on the development and evaluation of a Retrieval Augm
     * [cache](#cache)
     * [notebooks](#notebooks)
     * [src](#src)
+    * [assets](#assets)
   * [Getting Started](#getting-started)
     * [Installation](#installation)
 <!-- TOC -->
@@ -58,6 +59,9 @@ Here we got all our scripts used in the project.
 `utils.py` contains various helper functions and plotting functions. Also creates the complete combined results for the evaluation.  
 
 `vectorstorage.py` is a subclass from the `Chromadb` package. This class manages a persistent vector storage for document embeddings using ChromaDB. It supports embedding, storing, retrieving, and managing document collections for similarity-based search.  
+
+### assets
+Here we stored Images if we had or used some.
 
 ## Getting Started
 ```
