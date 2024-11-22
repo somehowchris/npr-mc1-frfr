@@ -23,7 +23,9 @@ The mini-challenge focuses on the development and evaluation of a Retrieval Augm
 npr-mc1-frfr
 ├── archiv/
 ├── data
+│   ├── assets
 │   ├── cache
+│   ├── chroma
 │   ├── eval_dataset
 │   ├── preprocessed
 │   └── raw
