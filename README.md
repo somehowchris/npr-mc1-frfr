@@ -12,6 +12,7 @@ The mini-challenge focuses on the development and evaluation of a Retrieval Augm
     * [cache](#cache)
     * [notebooks](#notebooks)
     * [src](#src)
+    * [assets](#assets)
   * [Getting Started](#getting-started)
     * [Installation](#installation)
 <!-- TOC -->
@@ -22,7 +23,9 @@ The mini-challenge focuses on the development and evaluation of a Retrieval Augm
 npr-mc1-frfr
 ├── archiv/
 ├── data
+│   ├── assets
 │   ├── cache
+│   ├── chroma
 │   ├── eval_dataset
 │   ├── preprocessed
 │   └── raw
@@ -59,6 +62,9 @@ Here we got all our scripts used in the project.
 
 `vectorstorage.py` is a subclass from the `Chromadb` package. This class manages a persistent vector storage for document embeddings using ChromaDB. It supports embedding, storing, retrieving, and managing document collections for similarity-based search.  
 
+### assets
+Here we stored Images if we had or used some.
+
 ## Getting Started
 ```
 pip install -r requirements.txt
@@ -67,6 +73,16 @@ We used openai and local llm (Ollama) for generating answers. To use them you ne
 ```
 OPENAI_API_KEY=your_openai_api_key
 ```
+For the LangSmith tracing and observing the System you need to insert this:
+
+```
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY=your_api_key
+LANGCHAIN_PROJECT=your_project_name
+```
+in your `.env` enviroment file.
+
 And for local llms we used [Ollama](https://ollama.com). For this project we used the [Qwen2.5](https://ollama.com/library/qwen2.5) model. After installing ollama you can pull the model with the following command:
 ```
 ollama run qwen2.5:3b-instruct
