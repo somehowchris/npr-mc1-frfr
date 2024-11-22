@@ -47,10 +47,15 @@ This directory contains all jupyter notebooks used in the project. All the exper
 ### src
 Here we got all our scripts used in the project.  
 `config.py` contains mainly the paths for the cache, raw data, preprocessed data and evaluation data.  
+
 `custom_embeddings.py` created as a subclass from the package `HuggingfaceHubEndpointEmbeddings`. This was necessary because since we used local embeddings model with docker we couldn't get the model name form the model parameters. We added `model_name: Optional[str] = None` give the model the embeddings model name when initializing the class.  
+
 `evaluation.py` contains the evaluation of the model. It also contains caching logic and plotting results. The `evaluate` method evaluates with the `ragas` package and the non-llm metrics: `precision@k`, `Mean Reciprocal Rank`, `Recall@k`.  
+
 `preprocessing.py` contains the preprocessing of the data. It's a basic cleaner for the raw data. It detects language and removes non-english sentences. It removes every `<tags>` and with regex `re.sub(r'[^a-zA-Z0-9.,?!]', ' ', text)` it removes every special character. It also generates unique ids for each row.  
+
 `utils.py` contains various helper functions and plotting functions. Also creates the complete combined results for the evaluation.  
+
 `vectorstorage.py` is a subclass from the `Chromadb` package. This class manages a persistent vector storage for document embeddings using ChromaDB. It supports embedding, storing, retrieving, and managing document collections for similarity-based search.  
 
 ## Getting Started
