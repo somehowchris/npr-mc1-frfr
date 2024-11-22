@@ -29,3 +29,5 @@ EVAL_FILE_PATH = PROJECT_ROOT / "data" / "eval_dataset" / "cleantech_rag_evaluat
 
 # Ensure the directory for the evaluation file exists
 EVAL_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+EMBEDDING_MODEL_HOST = "http://100.67.185.22"

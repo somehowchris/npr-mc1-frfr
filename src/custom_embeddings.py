@@ -1,8 +1,7 @@
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
-from pydantic import Field
 from typing import Any, List, Optional
-import os
 import json
+from config import EMBEDDING_MODEL_HOST
 
 
 class CustomHuggingFaceEndpointEmbeddings(HuggingFaceEndpointEmbeddings):
@@ -84,19 +83,17 @@ class CustomHuggingFaceEndpointEmbeddings(HuggingFaceEndpointEmbeddings):
         return response
 
 
-# TODO constant via env variable
-
 bge_m3_embed = CustomHuggingFaceEndpointEmbeddings(
-    model_name='BAAI_bge_m3',
-    model='http://0.0.0.0:8080',
+    model_name="BAAI_bge_m3",
+    model=f"{EMBEDDING_MODEL_HOST}:8080",
 )  # docker name musing_blackburn
 
 qwen2_embed = CustomHuggingFaceEndpointEmbeddings(
-    model_name='Alibaba-NLP_gte-Qwen2-7B',
-    model='http://0.0.0.0:8083',
+    model_name="Alibaba-NLP_gte-Qwen2-7B",
+    model=f"{EMBEDDING_MODEL_HOST}:8083",
 )  # docker name nostalgic_khayyam
 
 nomic_embed = CustomHuggingFaceEndpointEmbeddings(
-    model_name='nomic-ai_nomic-embed-text-v1_5',
-    model='http://0.0.0.0:8082',
+    model_name="nomic-ai_nomic-embed-text-v1_5",
+    model=f"{EMBEDDING_MODEL_HOST}:8082",
 )  # docker name thirsty_heisenberg
