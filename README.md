@@ -67,6 +67,16 @@ We used openai and local llm (Ollama) for generating answers. To use them you ne
 ```
 OPENAI_API_KEY=your_openai_api_key
 ```
+For the LangSmith tracing and observing the System you need to insert this:
+
+```
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
+LANGCHAIN_API_KEY=your_api_key
+LANGCHAIN_PROJECT=your_project_name
+```
+in your `.env` enviroment file.
+
 And for local llms we used [Ollama](https://ollama.com). For this project we used the [Qwen2.5](https://ollama.com/library/qwen2.5) model. After installing ollama you can pull the model with the following command:
 ```
 ollama run qwen2.5:3b-instruct
