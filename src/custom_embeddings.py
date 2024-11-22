@@ -84,18 +84,19 @@ class CustomHuggingFaceEndpointEmbeddings(HuggingFaceEndpointEmbeddings):
         return response
 
 
+# TODO constant via env variable
 
 bge_m3_embed = CustomHuggingFaceEndpointEmbeddings(
     model_name='BAAI_bge_m3',
-    model='http://100.67.185.22:8080',
+    model='http://0.0.0.0:8080',
 )  # docker name musing_blackburn
 
 qwen2_embed = CustomHuggingFaceEndpointEmbeddings(
     model_name='Alibaba-NLP_gte-Qwen2-7B',
-    model='http://100.67.185.22:8083',
+    model='http://0.0.0.0:8083',
 )  # docker name nostalgic_khayyam
 
 nomic_embed = CustomHuggingFaceEndpointEmbeddings(
     model_name='nomic-ai_nomic-embed-text-v1_5',
-    model='http://100.67.185.22:8082',
+    model='http://0.0.0.0:8082',
 )  # docker name thirsty_heisenberg
