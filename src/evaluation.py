@@ -419,3 +419,4 @@ class RAGEvaluation:
         plt.xticks(fontsize=12, rotation=20)
         plt.tight_layout()
         plt.show()
+

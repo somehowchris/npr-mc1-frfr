@@ -97,3 +97,4 @@ nomic_embed = CustomHuggingFaceEndpointEmbeddings(
     model_name="nomic-ai_nomic-embed-text-v1_5",
     model=f"{EMBEDDING_MODEL_HOST}:8082",
 )  # docker name thirsty_heisenberg
+

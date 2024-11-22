@@ -82,3 +82,4 @@ class EmbeddingVectorStorage:
             f"VectorStorage(method_of_embedding={self.method_of_embedding.__class__.__name__}, "
             f"group={self.collection})"
         )
+

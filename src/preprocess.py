@@ -44,3 +44,4 @@ class TextPreprocessor:
             lambda row: hashlib.md5(str(row.values).encode()).hexdigest(), axis=1
         )
         return self.data
+

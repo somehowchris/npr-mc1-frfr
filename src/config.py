@@ -36,3 +36,4 @@ EVAL_FILE_PATH = (
 EVAL_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 EMBEDDING_MODEL_HOST = "http://100.67.185.22"
+

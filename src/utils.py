@@ -181,3 +181,4 @@ def add_to_combined(
         return pd.concat([combined_df, new_df], ignore_index=True)
     else:
         return new_df
+
